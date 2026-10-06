@@ -10,11 +10,6 @@ use Filament\Facades\Filament;
 
 class SmokeTest extends TestCase
 {
-    public function test_the_panel_boots(): void
-    {
-        $this->assertSame('admin', Filament::getCurrentPanel()?->getId());
-    }
-
     public function test_the_plugin_is_registered_on_the_panel(): void
     {
         $panel = Filament::getPanel('admin');
@@ -25,6 +20,12 @@ class SmokeTest extends TestCase
 
     public function test_the_translations_are_loaded(): void
     {
-        $this->assertSame('Sample', __('filament-iban::filament-iban.sample'));
+        $this->assertNotSame('filament-iban::filament-iban.validation.checksum', __('filament-iban::filament-iban.validation.checksum'));
+    }
+
+    public function test_the_config_and_command_are_registered(): void
+    {
+        $this->assertFalse(config('filament-iban.show_bank_name'));
+        $this->assertArrayHasKey('filament-iban:update-banks', \Illuminate\Support\Facades\Artisan::all());
     }
 }

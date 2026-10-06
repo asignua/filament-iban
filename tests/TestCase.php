@@ -32,6 +32,7 @@ abstract class TestCase extends Orchestra
     {
         parent::setUp();
 
+        $this->app['view']->addLocation(__DIR__.'/../workbench/resources/views');
         $this->actingAs(User::factory()->create());
         Filament::setCurrentPanel('admin');
     }
