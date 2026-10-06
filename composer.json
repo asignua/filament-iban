@@ -1,7 +1,7 @@
 {
     "name": "asignua/filament-iban",
-    "description": "TODO: one-sentence description of IBAN for Filament.",
-    "keywords": ["filament", "filament-plugin", "laravel"],
+    "description": "IBAN input, validation rule, infolist entry and table column for Filament 5: grouped display, compact storage, SWIFT registry checks for every IBAN country and bank names for Ukraine and Poland.",
+    "keywords": ["filament", "filament-plugin", "laravel", "iban", "bank", "validation"],
     "homepage": "https://github.com/asignua/filament-iban",
     "support": {
         "issues": "https://github.com/asignua/filament-iban/issues",
