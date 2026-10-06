@@ -63,7 +63,7 @@ class Iban implements ValidationRule
 
         $value = (string) $value;
 
-        if (IbanValue::normalize($value) === '') {
+        if (trim($value) === '') {
             return;
         }
 
@@ -72,7 +72,7 @@ class Iban implements ValidationRule
         if ($problem !== null) {
             $length = IbanRegistry::get((string) IbanValue::country($value))['length'] ?? '';
 
-            $fail('filament-iban::filament-iban.validation.'.$problem)->translate(['length' => (string) $length]);
+            $fail('filament-iban::filament-iban.validation.'.($problem === 'empty' ? 'format' : $problem))->translate(['length' => (string) $length]);
 
             return;
         }

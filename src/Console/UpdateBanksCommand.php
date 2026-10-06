@@ -15,7 +15,7 @@ class UpdateBanksCommand extends Command
 {
     protected $signature = 'filament-iban:update-banks
         {country? : ISO code (UA, PL); every downloadable country when omitted}
-        {--path= : Directory to write into; defaults to filament-iban.banks_path, then storage/app/filament-iban/banks}';
+        {--path= : Export into this directory instead (the app reads only filament-iban.banks_path; used to regenerate the data shipped with the package)}';
 
     protected $description = 'Download the national bank registers (NBU, NBP) used to show the bank name of an IBAN';
 
@@ -58,8 +58,14 @@ class UpdateBanksCommand extends Command
                 continue;
             }
 
-            File::ensureDirectoryExists($dir);
-            File::put($dir.'/'.strtolower($code).'.php', $this->render($source, $banks));
+            if (count($banks) < $source->minimumBanks()) {
+                $this->components->error("{$code}: only ".count($banks)." banks downloaded (expected at least {$source->minimumBanks()}), the current file is kept.");
+                $failed = true;
+
+                continue;
+            }
+
+            $this->write($dir.'/'.strtolower($code).'.php', $this->render($source, $banks));
 
             if ($source instanceof FileBankDirectory) {
                 $source->forget();
@@ -69,6 +75,22 @@ class UpdateBanksCommand extends Command
         }
 
         return $failed ? self::FAILURE : self::SUCCESS;
+    }
+
+    /**
+     * Temp file in the same directory + rename, so a reader never sees a half-written file.
+     */
+    private function write(string $path, string $contents): void
+    {
+        File::ensureDirectoryExists(dirname($path));
+
+        $temporary = $path.'.'.bin2hex(random_bytes(4)).'.tmp';
+        File::put($temporary, $contents);
+        rename($temporary, $path);
+
+        if (function_exists('opcache_invalidate')) {
+            @opcache_invalidate($path, true);
+        }
     }
 
     private function targetDirectory(): string

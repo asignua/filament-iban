@@ -32,7 +32,15 @@ class UpdateBanksCommandTest extends TestCase
 
     private function nbu(): string
     {
+        $filler = [];
+
+        for ($i = 0; $i < 60; $i++) {
+            $mfo = 400000 + $i;
+            $filler[] = ['GLMFO' => $mfo, 'MFO' => $mfo, 'TYP' => 0, 'SHORTNAME' => 'Filler '.$i];
+        }
+
         return (string) json_encode([
+            ...$filler,
             ['GLMFO' => 305299, 'MFO' => 305299, 'TYP' => 0, 'SHORTNAME' => 'АТ КБ "ПриватБанк"'],
             ['GLMFO' => 305299, 'MFO' => 305299, 'TYP' => 2, 'SHORTNAME' => 'Відділення №1 АТ КБ "ПриватБанк"'],
             ['GLMFO' => 300335, 'MFO' => 300335, 'TYP' => 0, 'SHORTNAME' => 'АТ "Райффайзен Банк"'],
@@ -44,7 +52,14 @@ class UpdateBanksCommandTest extends TestCase
     {
         $row = static fn (string $code, string $name): string => str_pad($code, 5)."\t".str_pad($name, 40)."\t\t".$code."\t".$code."00000\tCentrala";
 
+        $rows = [];
+
+        for ($i = 0; $i < 210; $i++) {
+            $rows[] = $row((string) (300 + $i), 'Filler '.$i);
+        }
+
         return iconv('UTF-8', 'CP852', implode("\r\n", [
+            ...$rows,
             $row('102', 'Powszechna Kasa Oszczędności Bank Polski SA'),
             $row('102', 'Powszechna Kasa Oszczędności Bank Polski SA'),
             $row('249', 'Alior Bank Spółka Akcyjna'),
@@ -64,12 +79,14 @@ class UpdateBanksCommandTest extends TestCase
         $ua = require $this->dir.'/ua.php';
         $pl = require $this->dir.'/pl.php';
 
-        $this->assertSame([
-            '300335' => 'АТ "Райффайзен Банк"',
-            '305299' => 'АТ КБ "ПриватБанк"',
-            '305653' => 'АТ "Райффайзен Банк"',
-        ], $ua['banks']);
-        $this->assertSame(['102' => 'Powszechna Kasa Oszczędności Bank Polski SA', '249' => 'Alior Bank Spółka Akcyjna'], $pl['banks']);
+        $this->assertSame('АТ "Райффайзен Банк"', $ua['banks']['300335']);
+        $this->assertSame('АТ КБ "ПриватБанк"', $ua['banks']['305299']);
+        $this->assertSame('АТ "Райффайзен Банк"', $ua['banks']['305653']);
+        $this->assertCount(63, $ua['banks']);
+        $this->assertSame('Powszechna Kasa Oszczędności Bank Polski SA', $pl['banks']['102']);
+        $this->assertSame('Powszechna Kasa Oszczędności Bank Polski SA', $pl['banks']['10200000']);
+        $this->assertSame('Alior Bank Spółka Akcyjna', $pl['banks']['249']);
+        $this->assertSame([], glob($this->dir.'/*.tmp'));
         $this->assertNotEmpty($ua['source']);
         $this->assertNotEmpty($ua['fetched_at']);
     }
@@ -97,6 +114,32 @@ class UpdateBanksCommandTest extends TestCase
         $this->artisan('filament-iban:update-banks', ['country' => 'UA'])->assertFailed();
 
         $this->assertSame('<?php return [];', File::get($this->dir.'/ua.php'));
+    }
+
+    public function test_a_suspiciously_small_download_is_refused(): void
+    {
+        File::ensureDirectoryExists($this->dir);
+        File::put($this->dir.'/ua.php', "<?php return ['banks' => ['111111' => 'Old']];");
+        Http::fake([UkraineBanks::URL => Http::response((string) json_encode([
+            ['GLMFO' => 1, 'MFO' => 305299, 'TYP' => 0, 'SHORTNAME' => 'X'],
+        ]))]);
+
+        $this->artisan('filament-iban:update-banks', ['country' => 'UA'])->assertFailed();
+
+        $this->assertStringContainsString('Old', File::get($this->dir.'/ua.php'));
+    }
+
+    public function test_a_broken_override_falls_back_to_the_shipped_data(): void
+    {
+        File::ensureDirectoryExists($this->dir);
+        File::put($this->dir.'/ua.php', '<?php this is not php');
+
+        $this->assertStringContainsString('ПриватБанк', (string) app(BankDirectories::class)->for('UA')?->bankName('UA21305299'.'0000026007233566001'));
+
+        File::put($this->dir.'/ua.php', '<?php return "nope";');
+        app()->forgetInstance(BankDirectories::class);
+
+        $this->assertStringContainsString('ПриватБанк', (string) app(BankDirectories::class)->for('UA')?->bankName('UA21305299'.'0000026007233566001'));
     }
 
     public function test_an_unknown_country_is_rejected(): void

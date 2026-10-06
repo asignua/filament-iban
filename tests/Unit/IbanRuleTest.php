@@ -30,6 +30,13 @@ class IbanRuleTest extends TestCase
         $this->assertSame([], $this->errors(null));
     }
 
+    public function test_invalid_utf8_and_separator_only_values_are_not_treated_as_empty(): void
+    {
+        $this->assertArrayHasKey('iban', $this->errors("GB82WEST\xFF2345698765432"));
+        $this->assertArrayHasKey('iban', $this->errors('- - -'));
+        $this->assertSame([], $this->errors('   '));
+    }
+
     public function test_a_wrong_checksum_is_reported_with_a_translated_message(): void
     {
         $errors = $this->errors('DE89370400440532013001');

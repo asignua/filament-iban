@@ -9,6 +9,8 @@ use Asignua\FilamentIban\Support\BankDirectories;
 use Asignua\FilamentIban\Support\Iban;
 use Closure;
 use Filament\Forms\Components\TextInput;
+use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\HtmlString;
 
 /**
  * A text input for IBANs. The browser shows the number in groups of four while the user types (visual only); the
@@ -22,6 +24,8 @@ class IbanInput extends TextInput
     protected array|Closure|null $countries = null;
 
     protected bool|Closure|null $showBankName = null;
+
+    protected string|Htmlable|Closure|null $userHelperText = null;
 
     protected function setUp(): void
     {
@@ -47,7 +51,11 @@ class IbanInput extends TextInput
                 : null;
         });
 
-        $this->helperText(fn (): ?string => $this->shouldShowBankName() ? $this->getBankName() : null);
+        $this->mutateStateForValidationUsing(static fn (mixed $state): mixed => is_string($state) ? Iban::normalize($state) : $state);
+
+        $this->live(onBlur: true, condition: fn (): bool => $this->shouldShowBankName());
+
+        parent::helperText(fn (): string|Htmlable|null => $this->composeHelperText());
 
         $this->autocomplete(false);
         $this->extraInputAttributes([
@@ -57,24 +65,74 @@ class IbanInput extends TextInput
         ], merge: true);
 
         $this->extraAlpineAttributes([
-            'x-on:input' => <<<'JS'
+            // Backspace / Delete next to a group separator would only delete the space, which the formatter puts
+            // back: remove the neighbouring character as well.
+            'x-on:beforeinput' => <<<'JS'
                 (() => {
                     const el = $el;
+                    if (el.selectionStart !== el.selectionEnd) return;
+                    const p = el.selectionStart;
+                    let from, to;
+                    if ($event.inputType === 'deleteContentForward' && el.value[p] === ' ') { from = p; to = p + 2; }
+                    else if ($event.inputType === 'deleteContentBackward' && el.value[p - 1] === ' ') { from = p - 2; to = p; }
+                    else return;
+                    $event.preventDefault();
+                    el.setRangeText('', Math.max(from, 0), Math.min(to, el.value.length), 'end');
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                })()
+                JS,
+            // Visual mask. x-model (wire:model) has already read the raw text by the time this runs, so the
+            // formatted value is written back to it, like Alpine's x-mask does.
+            'x-on:input' => <<<'JS'
+                (() => {
+                    if ($event.isComposing) return;
+                    const el = $el;
+                    const strip = /[\s ­​-‍﻿.\/-]/g;
                     const caret = el.selectionStart ?? el.value.length;
-                    const significant = el.value.slice(0, caret).replace(/[^A-Za-z0-9]/g, '').length;
-                    const formatted = el.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().replace(/(.{4})(?=.)/g, '$1 ');
-                    if (formatted === el.value) return;
-                    el.value = formatted;
-                    let position = 0;
-                    let seen = 0;
-                    while (position < formatted.length && seen < significant) {
-                        if (formatted[position] !== ' ') seen++;
-                        position++;
+                    const significant = el.value.slice(0, caret).replace(strip, '').length;
+                    const formatted = el.value.replace(strip, '').toUpperCase().replace(/(.{4})(?=.)/g, '$1 ');
+                    if (formatted !== el.value) {
+                        el.value = formatted;
+                        let position = 0;
+                        let seen = 0;
+                        while (position < formatted.length && seen < significant) {
+                            if (formatted[position] !== ' ') seen++;
+                            position++;
+                        }
+                        el.setSelectionRange(position, position);
                     }
-                    el.setSelectionRange(position, position);
+                    if (el._x_model && el._x_model.get() !== formatted) el._x_model.set(formatted);
                 })()
                 JS,
         ], merge: true);
+    }
+
+    /**
+     * Your own helper text is shown together with the bank name (separated by an em dash) instead of replacing it.
+     */
+    public function helperText(string|Htmlable|Closure|null $text): static
+    {
+        $this->userHelperText = $text;
+
+        return $this;
+    }
+
+    private function composeHelperText(): string|Htmlable|null
+    {
+        $own = $this->evaluate($this->userHelperText);
+        $bank = $this->shouldShowBankName() ? $this->getBankName() : null;
+
+        if (blank($bank)) {
+            return blank($own) ? null : $own;
+        }
+
+        if (blank($own)) {
+            return $bank;
+        }
+
+        $own = $own instanceof Htmlable ? $own->toHtml() : e($own);
+
+        return new HtmlString($own.' — '.e($bank));
     }
 
     /**
@@ -107,10 +165,6 @@ class IbanInput extends TextInput
     public function showBankName(bool|Closure $condition = true): static
     {
         $this->showBankName = $condition;
-
-        if ($condition !== false) {
-            $this->live(onBlur: true);
-        }
 
         return $this;
     }

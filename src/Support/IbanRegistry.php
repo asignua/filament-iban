@@ -7,7 +7,7 @@ namespace Asignua\FilamentIban\Support;
 /**
  * Country data of the SWIFT IBAN registry, read once from `resources/data/countries.php`.
  *
- * @phpstan-type Country array{name: string, length: int, structure: string, bank: array{int, int}, example: string}
+ * @phpstan-type Country array{name: string, length: int, structure: string, bank: array{int, int}, branch?: array{int, int}, example: string}
  */
 final class IbanRegistry
 {

@@ -18,6 +18,11 @@ class PolandBanks extends FileBankDirectory
 
     public const string URL = 'https://ewib.nbp.pl/plewibnra?dokNazwa=plewibnra.txt';
 
+    public function minimumBanks(): int
+    {
+        return 200;
+    }
+
     public function country(): string
     {
         return 'PL';
@@ -30,7 +35,7 @@ class PolandBanks extends FileBankDirectory
 
     protected function keys(string $iban): array
     {
-        return [substr($iban, 4, 5), substr($iban, 4, 4), substr($iban, 4, 3)];
+        return [substr($iban, 4, 8), substr($iban, 4, 5), substr($iban, 4, 4), substr($iban, 4, 3)];
     }
 
     public function download(): array
@@ -47,29 +52,44 @@ class PolandBanks extends FileBankDirectory
     }
 
     /**
+     * Keys: the full 8-digit settlement number of every row (the owner of a number can differ from the bank code it
+     * starts with after a merger: 144xxxxx is PKO BP, formerly Nordea) and the 3-5 digit bank codes as the fallback
+     * for numbers the register does not list.
+     *
      * @return array<string, string>
      */
     public function parse(string $text): array
     {
-        $banks = [];
+        $numbers = [];
+        $codes = [];
 
         foreach (preg_split('/\R/u', $text) ?: [] as $line) {
             $columns = explode("\t", $line);
             $code = trim($columns[0]);
             $name = trim($columns[1] ?? '');
+            $number = trim($columns[4] ?? '');
 
-            if (preg_match('/^\d{3,5}$/', $code) === 1 && $name !== '' && !isset($banks[$code])) {
-                $banks[$code] = $name;
+            if ($name === '') {
+                continue;
+            }
+
+            if (preg_match('/^\d{3,5}$/', $code) === 1 && !isset($codes[$code])) {
+                $codes[$code] = $name;
+            }
+
+            if (preg_match('/^\d{8}$/', $number) === 1 && !isset($numbers[$number])) {
+                $numbers[$number] = $name;
             }
         }
 
+        $banks = $codes + $numbers;
         ksort($banks, SORT_STRING);
 
         return $banks;
     }
 
     /**
-     * The register is CP852 (Latin-2 of DOS). Decoded by hand: it needs neither iconv nor mbstring, and iconv builds
+     * The register is CP852 (Latin-2 of DOS). Decoded by hand: iconv builds
      * differ in how they treat these bytes.
      */
     private function toUtf8(string $body): string

@@ -91,6 +91,44 @@ class IbanInputTest extends TestCase
         $this->assertSame(['UA'], IbanInput::make('c')->countries(['UA'])->getCountries());
     }
 
+    public function test_validation_sees_the_compact_value(): void
+    {
+        $input = IbanInput::make('iban')->maxLength(22);
+
+        $this->assertSame('GB82WEST12345698765432', $input->mutateStateForValidation('gb82 west 1234 5698 7654 32'));
+    }
+
+    public function test_the_formatter_writes_back_to_the_model_and_handles_separators(): void
+    {
+        $html = Livewire::test(IbanForm::class)->html();
+
+        $this->assertStringContainsString('_x_model.set(formatted)', html_entity_decode($html));
+        $this->assertStringContainsString('isComposing', $html);
+        $this->assertStringContainsString('x-on:beforeinput', $html);
+        $this->assertStringContainsString('deleteContentForward', $html);
+    }
+
+    public function test_the_config_default_makes_the_field_live_on_blur(): void
+    {
+        $this->assertFalse(IbanInput::make('a')->isLive());
+
+        config()->set('filament-iban.show_bank_name', true);
+        $input = IbanInput::make('b');
+
+        $this->assertTrue($input->isLive());
+        $this->assertTrue($input->isLiveOnBlur());
+        $this->assertTrue($input->shouldShowBankName());
+        $this->assertFalse(IbanInput::make('c')->showBankName(false)->isLive());
+    }
+
+    public function test_user_helper_text_is_shown_together_with_the_bank_name(): void
+    {
+        Livewire::test(IbanForm::class)
+            ->fillForm(['helped' => 'UA213223130000026007233566001'])
+            ->assertSee('Your own hint')
+            ->assertSee('Укрексімбанк');
+    }
+
     public function test_entry_and_column_format_and_copy_the_compact_form(): void
     {
         $this->assertInstanceOf(IbanEntry::class, IbanEntry::make('iban')->showBankName());

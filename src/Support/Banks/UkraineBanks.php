@@ -15,6 +15,11 @@ class UkraineBanks extends FileBankDirectory
 {
     public const string URL = 'https://bank.gov.ua/NBU_BankInfo/get_data_branch?json';
 
+    public function minimumBanks(): int
+    {
+        return 50;
+    }
+
     public function country(): string
     {
         return 'UA';

@@ -8,6 +8,7 @@ use Asignua\FilamentIban\Contracts\BankDirectory;
 use Asignua\FilamentIban\Contracts\DownloadsBanks;
 use Asignua\FilamentIban\Support\Iban;
 use Illuminate\Support\Facades\File;
+use Throwable;
 
 /**
  * A bank directory backed by a PHP data file `<country>.php` that returns
@@ -58,14 +59,25 @@ abstract class FileBankDirectory implements BankDirectory, DownloadsBanks
     public function load(): array
     {
         foreach ([self::overridePath($this->country()), self::shippedPath($this->country())] as $path) {
-            if ($path !== null && File::isFile($path)) {
-                /** @var array{source?: string, fetched_at?: ?string, banks?: array<string, string>} $data */
+            if (!File::isFile($path)) {
+                continue;
+            }
+
+            try {
+                /** @var mixed $data */
                 $data = require $path;
+            } catch (Throwable) {
+                // A broken or half-written override must not take the shipped data down with it.
+                continue;
+            }
+
+            if (is_array($data) && is_array($data['banks'] ?? null)) {
+                /** @var array{source?: string, fetched_at?: ?string, banks: array<string, string>} $data */
 
                 return [
                     'source' => $data['source'] ?? '',
                     'fetched_at' => $data['fetched_at'] ?? null,
-                    'banks' => $data['banks'] ?? [],
+                    'banks' => $data['banks'],
                 ];
             }
         }
@@ -78,7 +90,7 @@ abstract class FileBankDirectory implements BankDirectory, DownloadsBanks
         return __DIR__.'/../../../resources/data/banks/'.strtolower($country).'.php';
     }
 
-    public static function overridePath(string $country): ?string
+    public static function overridePath(string $country): string
     {
         $dir = config('filament-iban.banks_path');
         $dir = is_string($dir) && $dir !== '' ? $dir : storage_path('app/filament-iban/banks');

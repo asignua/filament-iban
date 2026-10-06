@@ -48,6 +48,23 @@ class BankDirectoryTest extends TestCase
         $this->assertStringContainsString('ING Bank', (string) $banks->bankName($this->polishIban('105')));
     }
 
+    public function test_polish_numbers_inherited_through_mergers_resolve_to_the_current_owner(): void
+    {
+        $banks = app(BankDirectories::class);
+        $name = fn (string $number): string => (string) $banks->bankName($this->withCheckDigits('PL', $number.'0000071219812874'));
+
+        $this->assertStringContainsString('Powszechna Kasa Oszczędności', $name('14400003'));
+        $this->assertStringContainsString('Erste Bank', $name('15000002'));
+        $this->assertStringContainsString('Erste Bank', $name('19100009'));
+        $this->assertStringContainsString('Alior', $name('10600018'));
+        $this->assertStringContainsString('VeloBank', $name('10300019'));
+        $this->assertStringContainsString('VeloBank', $name('24800002'));
+        // not listed: falls back to the bank code prefix
+        $this->assertStringContainsString('mBank', $name('11499999'));
+        // cooperative bank, 4-digit code
+        $this->assertStringContainsString('Bank Spółdzielczy w Otwocku', $name('80010005'));
+    }
+
     public function test_unknown_banks_countries_and_invalid_ibans_give_null(): void
     {
         $banks = app(BankDirectories::class);

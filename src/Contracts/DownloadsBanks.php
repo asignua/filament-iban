@@ -15,6 +15,11 @@ interface DownloadsBanks
     public function country(): string;
 
     /**
+     * A download with fewer entries is treated as broken and never replaces the current file.
+     */
+    public function minimumBanks(): int;
+
+    /**
      * Where the data comes from (shown in the generated file and in the command output).
      */
     public function source(): string;

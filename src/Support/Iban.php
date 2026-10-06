@@ -16,7 +16,13 @@ final class Iban
      */
     public static function normalize(?string $iban): string
     {
-        return strtoupper(preg_replace('/[\s\x{00A0}]+/u', '', (string) $iban) ?? '');
+        $iban = (string) $iban;
+
+        // Whitespace, hyphens, dots, slashes and invisible characters (soft hyphen, zero-width, BOM) are separators.
+        $clean = preg_replace('/[\s\x{00A0}\x{00AD}\x{200B}-\x{200D}\x{FEFF}.\/-]+/u', '', $iban);
+
+        // Invalid UTF-8: keep the bytes so that validation reports a format error instead of an empty value.
+        return strtoupper($clean ?? $iban);
     }
 
     /**
@@ -44,14 +50,28 @@ final class Iban
      */
     public static function bankCode(?string $iban): ?string
     {
+        return self::span($iban, 'bank');
+    }
+
+    /**
+     * The branch identifier, for the countries whose registry entry defines one (null otherwise).
+     */
+    public static function branchCode(?string $iban): ?string
+    {
+        return self::span($iban, 'branch');
+    }
+
+    private static function span(?string $iban, string $part): ?string
+    {
         $iban = self::normalize($iban);
         $data = IbanRegistry::get(substr($iban, 0, 2));
+        $span = $data === null ? null : ($part === 'bank' ? $data['bank'] : ($data['branch'] ?? null));
 
-        if ($data === null || strlen($iban) < $data['bank'][0] + $data['bank'][1]) {
+        if ($span === null || strlen($iban) < $span[0] + $span[1]) {
             return null;
         }
 
-        return substr($iban, $data['bank'][0], $data['bank'][1]);
+        return substr($iban, $span[0], $span[1]);
     }
 
     /**
@@ -89,6 +109,10 @@ final class Iban
             return 'unknown_country';
         }
 
+        if (in_array(substr($iban, 2, 2), ['00', '01', '99'], true)) {
+            return 'checksum';
+        }
+
         if (strlen($iban) !== $data['length']) {
             return 'length';
         }
@@ -101,10 +125,12 @@ final class Iban
     }
 
     /**
-     * The ISO 7064 mod 97-10 remainder; 1 for a correct IBAN. Chunked, so it needs neither bcmath nor 64-bit tricks.
+     * The ISO 7064 mod 97-10 remainder; 1 for a correct IBAN. Chunked, so it needs neither bcmath nor GMP.
+     * Expects a normalized IBAN (upper case, no separators); it is normalized here defensively.
      */
     public static function mod97(string $iban): int
     {
+        $iban = self::normalize($iban);
         $rearranged = substr($iban, 4).substr($iban, 0, 4);
         $remainder = 0;
 
