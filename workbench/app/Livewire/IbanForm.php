@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Workbench\App\Livewire;
 
 use Asignua\FilamentIban\Forms\Components\IbanInput;
+use Filament\Forms\Components\Repeater;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
@@ -35,6 +37,11 @@ class IbanForm extends Component implements HasSchemas
                 IbanInput::make('eu')->countries(['de', 'PL'])->showBankName(),
                 IbanInput::make('helped')->countries(['UA'])->showBankName()->helperText('Your own hint'),
                 IbanInput::make('ua')->countries(['UA'])->showBankName(),
+                Section::make()->live()->schema([IbanInput::make('inherits')]),
+                IbanInput::make('limited')->maxLength(34),
+                Repeater::make('accounts')->schema([
+                    IbanInput::make('iban')->countries(['UA'])->showBankName(),
+                ]),
             ])
             ->statePath('data');
     }

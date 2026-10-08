@@ -41,10 +41,12 @@ class IbanInput extends TextInput
             ? Iban::normalize($state)
             : null);
 
-        $this->rule(fn (): IbanRule => IbanRule::make()->countries($this->getCountries()));
+        // Static closures taking the component: inside a Repeater/Builder Filament clones the field per item, and a
+        // closure bound to `$this` would keep reading the original template (no item state path, wrong `$get`).
+        $this->rule(static fn (IbanInput $component): IbanRule => IbanRule::make()->countries($component->getCountries()));
 
-        $this->placeholder(function (): ?string {
-            $countries = $this->getCountries();
+        $this->placeholder(static function (IbanInput $component): ?string {
+            $countries = $component->getCountries();
 
             return count($countries) === 1 && ($example = Iban::example($countries[0])) !== null
                 ? Iban::format($example)
@@ -53,11 +55,20 @@ class IbanInput extends TextInput
 
         $this->mutateStateForValidationUsing(static fn (mixed $state): mixed => is_string($state) ? Iban::normalize($state) : $state);
 
-        $this->live(onBlur: true, condition: fn (): bool => $this->shouldShowBankName());
-
-        parent::helperText(fn (): string|Htmlable|null => $this->composeHelperText());
+        parent::helperText(static fn (IbanInput $component): string|Htmlable|null => $component->composeHelperText());
 
         $this->autocomplete(false);
+        // The browser limit applies to the grouped text the mask writes, while maxLength()/length() describe the compact
+        // value: widen it by the separators (one per full group of four) and leave the length check to the rules.
+        $this->extraInputAttributes(static function (IbanInput $component): array {
+            $max = $component->getMaxLength();
+
+            return [
+                'maxlength' => $max === null ? null : $max + intdiv(max($max - 1, 0), 4),
+                'minlength' => null,
+            ];
+        }, merge: true);
+
         $this->extraInputAttributes([
             'autocapitalize' => 'characters',
             'spellcheck' => 'false',
@@ -108,6 +119,32 @@ class IbanInput extends TextInput
     }
 
     /**
+     * The bank name is resolved on the server on blur, so the field turns live only when it is shown. Done here and
+     * not with `live()` in setUp: an explicit `isLive === false` would stop the field from inheriting a parent
+     * container's `live()`. A `->live()` of your own sets `isLive` and wins.
+     *
+     * @return array<string>
+     */
+    public function getStateBindingModifiers(bool $withBlur = true, bool $withDebounce = true, bool $isOptimisticallyLive = true): array
+    {
+        if ($this->stateBindingModifiers === null && $this->isLive === null && $this->shouldShowBankName()) {
+            return $withBlur ? ['live', 'blur'] : ($isOptimisticallyLive ? ['live'] : []);
+        }
+
+        return parent::getStateBindingModifiers($withBlur, $withDebounce, $isOptimisticallyLive);
+    }
+
+    public function isLive(): bool
+    {
+        return ($this->isLive === null && $this->shouldShowBankName()) || parent::isLive();
+    }
+
+    public function isLiveOnBlur(): bool
+    {
+        return ($this->isLive === null && $this->shouldShowBankName()) || parent::isLiveOnBlur();
+    }
+
+    /**
      * Your own helper text is shown together with the bank name (separated by an em dash) instead of replacing it.
      */
     public function helperText(string|Htmlable|Closure|null $text): static
@@ -117,7 +154,7 @@ class IbanInput extends TextInput
         return $this;
     }
 
-    private function composeHelperText(): string|Htmlable|null
+    protected function composeHelperText(): string|Htmlable|null
     {
         $own = $this->evaluate($this->userHelperText);
         $bank = $this->shouldShowBankName() ? $this->getBankName() : null;

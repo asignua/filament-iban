@@ -68,6 +68,29 @@ class IbanInputTest extends TestCase
             ->assertSee('Укрексімбанк')->assertDontSee('zzz');
     }
 
+    public function test_the_bank_name_is_shown_inside_a_repeater_item(): void
+    {
+        Livewire::test(IbanForm::class)
+            ->fillForm(['accounts' => [['iban' => 'UA21 3223 1300 0002 6007 2335 6600 1']]])
+            ->assertSee('Укрексімбанк');
+    }
+
+    public function test_the_html_maxlength_covers_the_grouped_text(): void
+    {
+        $html = Livewire::test(IbanForm::class)->html();
+
+        $this->assertStringContainsString('maxlength="42"', $html);
+    }
+
+    public function test_bank_names_off_leaves_live_to_the_container(): void
+    {
+        $html = html_entity_decode(Livewire::test(IbanForm::class)->html());
+
+        $this->assertStringContainsString('wire:model.live="data.inherits"', $html);
+        $this->assertStringContainsString('wire:model.live.blur="data.ua"', $html);
+        $this->assertStringNotContainsString('wire:model.live="data.iban"', $html);
+    }
+
     public function test_the_markup_carries_the_formatter_and_a_single_country_placeholder(): void
     {
         $html = Livewire::test(IbanForm::class)->html();
@@ -110,15 +133,13 @@ class IbanInputTest extends TestCase
 
     public function test_the_config_default_makes_the_field_live_on_blur(): void
     {
-        $this->assertFalse(IbanInput::make('a')->isLive());
-
         config()->set('filament-iban.show_bank_name', true);
         $input = IbanInput::make('b');
 
         $this->assertTrue($input->isLive());
         $this->assertTrue($input->isLiveOnBlur());
         $this->assertTrue($input->shouldShowBankName());
-        $this->assertFalse(IbanInput::make('c')->showBankName(false)->isLive());
+        $this->assertSame(['live', 'blur'], $input->getStateBindingModifiers());
     }
 
     public function test_user_helper_text_is_shown_together_with_the_bank_name(): void

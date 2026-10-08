@@ -73,7 +73,7 @@ use Asignua\FilamentIban\Support\Iban;
 Iban::normalize('ua21 3223 1300 0002 6007 2335 6600 1'); // UA213223130000026007233566001
 Iban::format('UA213223130000026007233566001');            // UA21 3223 1300 0002 6007 2335 6600 1
 Iban::isValid($iban);                                     // bool
-Iban::problem($iban);                                     // null | format | unknown_country | length | structure | checksum
+Iban::problem($iban);                                     // null | empty | format | unknown_country | length | structure | checksum ('empty': nothing left after removing separators)
 Iban::country($iban);                                     // 'UA'
 Iban::bankCode($iban);                                    // the SWIFT bank identifier: '322313' (the MFO) for UA, '10901014' for PL, 'WEST' for GB
 Iban::branchCode($iban);                                  // branch identifier where the registry has one ('123456' sort code for GB), else null
@@ -130,11 +130,13 @@ php artisan filament-iban:update-banks PL --path=/some/dir
 ```
 
 The files are PHP arrays, written to `filament-iban.banks_path` (default `storage/app/filament-iban/banks`) through a temp file and
-`rename()` (opcache is invalidated), and read before the shipped ones. A download below a sanity floor (50 UA / 200 PL entries)
+`rename()` (opcache is invalidated for the CLI process only), and read before the shipped ones. A download below a sanity floor (50 UA / 200 PL entries)
 or an HTTP failure leaves the current file alone; an override that cannot be loaded is ignored in favour of the shipped data. Only
 write to a directory your app alone can write to - the file is executed by PHP.
 `--path=<dir>` is an **export** (used to regenerate the data shipped with the package); the app reads only `banks_path`.
 Schedule it if you care: `Schedule::command('filament-iban:update-banks')->monthly();`.
+The command cannot reach other processes: PHP-FPM with `opcache.validate_timestamps=0`, Octane and queue workers keep the
+previous data (opcache, and the in-memory directory of a long-lived worker) until they are reloaded or restarted after an update.
 
 ## Configuration
 
@@ -152,7 +154,7 @@ php artisan vendor:publish --tag=filament-iban-config
 
 - **Store the compact form.** The grouping is only a mask in the browser. The state is compact after `getState()` and in the database; a stored compact value is regrouped when the form is filled. Do not compare or search with the grouped string.
 - **Empty is valid.** The rule skips empty values like every Laravel rule; use `->required()`.
-- **Bank name appears on blur**, not on every key stroke: it is resolved on the server (`live(onBlur: true)`, enabled by `showBankName()` or the config default; a `->live()` you call later wins). It stays hidden for an invalid IBAN or an unknown bank.
+- **Bank name appears on blur**, not on every key stroke: it is resolved on the server (live on blur, enabled by `showBankName()` or the config default; a `->live()` you call later wins). It stays hidden for an invalid IBAN or an unknown bank.
 - **Check digits do not prove the account exists**, only that the number is well-formed.
 - **Registry data ages.** New IBAN countries are added to the SWIFT registry from time to time (`resources/data/countries.php`, 88 countries); an IBAN of a country missing there is reported as an unknown country.
 - **Ukrainian IBANs of branches and closed banks.** The NBU register contains every MFO, branches resolved to the head bank, liquidated banks included. Some MFOs of old accounts (for example Raiffeisen Bank Aval's former 380805) are no longer listed and show no name.
