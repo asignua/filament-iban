@@ -159,4 +159,30 @@ class IbanInputTest extends TestCase
 
         $this->assertSame('UA21 3223 1300 0002 6007 2335 6600 1', $column->formatState('UA213223130000026007233566001'));
     }
+
+    public function test_the_default_label_and_message_keep_the_acronym(): void
+    {
+        $this->assertSame('IBAN', IbanInput::make('iban')->getLabel());
+        $this->assertSame('IBAN', IbanInput::make('data.iban')->getValidationAttribute());
+
+        Livewire::test(IbanForm::class)
+            ->fillForm(['iban' => 'GB83 WEST 1234 5698 7654 32'])
+            ->call('save')
+            ->assertHasFormErrors(['iban'])
+            ->assertSee('The IBAN ')
+            ->assertDontSee('The iBAN');
+    }
+
+    public function test_a_lowercase_label_keeps_the_filament_behaviour(): void
+    {
+        $this->assertSame('bank account', IbanInput::make('x')->label('Bank account')->getValidationAttribute());
+        $this->assertSame('iBAN', IbanInput::make('x')->label('iBAN')->getValidationAttribute());
+        $this->assertSame('IBAN account', IbanInput::make('x')->label('IBAN account')->getValidationAttribute());
+    }
+
+    public function test_an_explicit_validation_attribute_wins(): void
+    {
+        $this->assertSame('x', IbanInput::make('iban')->validationAttribute('x')->getValidationAttribute());
+        $this->assertSame('x', IbanInput::make('iban')->label('IBAN')->validationAttribute(fn () => 'x')->getValidationAttribute());
+    }
 }

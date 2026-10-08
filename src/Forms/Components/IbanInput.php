@@ -217,4 +217,28 @@ class IbanInput extends TextInput
 
         return is_string($state) ? app(BankDirectories::class)->bankName($state) : null;
     }
+
+    /**
+     * Filament lower-cases the first letter of the label in validation messages ("The iBAN must..."). A label that
+     * opens with an acronym ("IBAN", "VAT / Tax ID") is kept as written; your own `->validationAttribute()` wins.
+     */
+    public function getValidationAttribute(): string
+    {
+        if (filled($this->evaluate($this->validationAttribute))) {
+            return parent::getValidationAttribute();
+        }
+
+        $label = $this->getLabel();
+
+        return is_string($label) && preg_match('/^\p{Lu}{2}/u', $label) === 1
+            ? $label
+            : parent::getValidationAttribute();
+    }
+
+    public function getDefaultLabel(): string
+    {
+        return strtolower(str($this->getName())->afterLast('.')->toString()) === 'iban'
+            ? 'IBAN'
+            : parent::getDefaultLabel();
+    }
 }

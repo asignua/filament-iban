@@ -2,6 +2,12 @@
 
 All notable changes to `asignua/filament-iban` are documented here.
 
+## Unreleased
+
+- Docs: screenshots and a cover in `art/`, wired into the README; a workbench demo (Acme Supply data, `DemoSeeder`) to reproduce them.
+- Fix: `IbanInput` keeps an acronym label as written in validation messages ("The IBAN must..." instead of "The iBAN must..."); Filament's `lcfirst` still applies to other labels and an explicit `->validationAttribute()` wins.
+- `IbanInput` shows the label "IBAN" by default for a field named `iban` (Filament would print "Iban").
+
 ## v1.0.1 - 2026-10-08
 
 - Fix: `IbanInput` inside a Repeater/Builder - the rule, placeholder and helper text closures no longer capture the template component, so the bank name shows in every item and `$get`-based closures (`countries()`, `showBankName()`, `helperText()`) see the item.

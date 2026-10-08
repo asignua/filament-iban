@@ -17,6 +17,8 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Workbench\App\Filament\Resources\SupplierResource;
+use Workbench\App\Support\ColouredAvatars;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -26,6 +28,9 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            ->brandName('Acme Supply')
+            ->defaultAvatarProvider(ColouredAvatars::class)
+            ->resources([SupplierResource::class])
             ->login()
             ->plugin(IbanPlugin::make())
             ->middleware([

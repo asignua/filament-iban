@@ -1,5 +1,7 @@
 # Filament IBAN
 
+<img class="filament-hidden" src="https://raw.githubusercontent.com/asignua/filament-iban/v1.0.2/art/cover.jpg" alt="Filament IBAN">
+
 [![Tests](https://img.shields.io/github/actions/workflow/status/asignua/filament-iban/tests.yml?branch=main&label=tests)](https://github.com/asignua/filament-iban/actions/workflows/tests.yml)
 
 An IBAN field for Filament 5 that behaves: the user sees and edits the number in groups of four, the database gets the
@@ -9,7 +11,21 @@ an infolist entry, a table column and a value helper. No dependencies besides Fi
 
 ## Screenshots
 
-Screenshots are not added yet (`art/`).
+![A table with IbanColumn: grouped numbers and bank names](https://raw.githubusercontent.com/asignua/filament-iban/v1.0.2/art/list.jpg)
+
+The field groups the number as you type and shows the bank for Ukrainian and Polish accounts:
+
+![IbanInput with the bank name under the field](https://raw.githubusercontent.com/asignua/filament-iban/v1.0.2/art/form.jpg)
+
+Every IBAN country is checked for length, account structure and check digits:
+
+![A validation error for a wrong IBAN](https://raw.githubusercontent.com/asignua/filament-iban/v1.0.2/art/validation.jpg)
+
+![IbanEntry on a view page](https://raw.githubusercontent.com/asignua/filament-iban/v1.0.2/art/view.jpg)
+
+Dark mode:
+
+![Dark mode](https://raw.githubusercontent.com/asignua/filament-iban/v1.0.2/art/list-dark.jpg)
 
 ## Requirements
 
