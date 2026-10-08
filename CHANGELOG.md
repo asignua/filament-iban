@@ -2,7 +2,7 @@
 
 All notable changes to `asignua/filament-iban` are documented here.
 
-## Unreleased
+## v1.0.1 - 2026-10-08
 
 - Fix: `IbanInput` inside a Repeater/Builder - the rule, placeholder and helper text closures no longer capture the template component, so the bank name shows in every item and `$get`-based closures (`countries()`, `showBankName()`, `helperText()`) see the item.
 - Fix: `->maxLength()` / `->length()` no longer block typing a full IBAN: the HTML `maxlength` accounts for the group separators, `minlength` is dropped (validation still uses the compact value).
