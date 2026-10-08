@@ -2,7 +2,7 @@
 
 All notable changes to `asignua/filament-iban` are documented here.
 
-## Unreleased
+## v1.0.2 - 2026-10-08
 
 - Docs: screenshots and a cover in `art/`, wired into the README; a workbench demo (Acme Supply data, `DemoSeeder`) to reproduce them.
 - Fix: `IbanInput` keeps an acronym label as written in validation messages ("The IBAN must..." instead of "The iBAN must..."); Filament's `lcfirst` still applies to other labels and an explicit `->validationAttribute()` wins.
