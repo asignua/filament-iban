@@ -2,6 +2,14 @@
 
 All notable changes to `asignua/filament-iban` are documented here.
 
+## Unreleased
+
+- Bank details: `showBankDetails()` on `IbanInput`, `IbanEntry` and `IbanColumn` (config `show_bank_details`) shows "Name · BIC · City" and a danger-coloured status ("In liquidation", "Closed", "Activity suspended") for a bank that is not active. `showBankName()` is unchanged; where both are on, details win.
+- New value object `Support\BankDetails` (name, bic, city, address, postcode, status), `Contracts\ResolvesBankDetails` and `BankDirectories::details()`. Not a breaking change: `BankDirectory` is untouched, a directory without `ResolvesBankDetails` yields details with just the name.
+- Data files accept an array entry (`name`, `bic`, `city`, `address`, `postcode`, `status`) next to the plain string; `DownloadsBanks::download()` may return either. The shipped `ua.php` now carries town, address, postcode and the liquidation status (no BIC in the NBU register); `pl.php` carries the BIC and branch town.
+- New download-only countries (not shipped, licences unclear): DE (Bundesbank Bankleitzahlendatei), AT (OeNB), CH and LI (SIX Bank Master), CZ (ČNB). Run `filament-iban:update-banks <country>` to enable one; the bare command refreshes UA, PL and every country that already has a data file.
+- Translations for the status texts in all ten languages.
+
 ## v1.0.2 - 2026-10-08
 
 - Docs: screenshots and a cover in `art/`, wired into the README; a workbench demo (Acme Supply data, `DemoSeeder`) to reproduce them.

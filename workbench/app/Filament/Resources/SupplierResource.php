@@ -46,7 +46,7 @@ class SupplierResource extends Resource
         return $schema->components([
             TextInput::make('name')->required()->maxLength(120),
             Select::make('country')->options(self::COUNTRIES)->required(),
-            IbanInput::make('iban')->label('IBAN')->required()->showBankName(),
+            IbanInput::make('iban')->label('IBAN')->required()->showBankDetails(),
             Textarea::make('notes')->rows(3)->columnSpanFull(),
         ]);
     }
@@ -56,7 +56,7 @@ class SupplierResource extends Resource
         return $schema->components([
             TextEntry::make('name'),
             TextEntry::make('country')->formatStateUsing(fn (string $state): string => self::COUNTRIES[$state] ?? $state),
-            IbanEntry::make('iban')->label('IBAN')->showBankName(),
+            IbanEntry::make('iban')->label('IBAN')->showBankDetails(),
             TextEntry::make('notes')->placeholder('-')->columnSpanFull(),
         ]);
     }
@@ -67,7 +67,7 @@ class SupplierResource extends Resource
             ->columns([
                 TextColumn::make('name')->searchable()->sortable(),
                 TextColumn::make('country')->badge()->sortable(),
-                IbanColumn::make('iban')->label('IBAN')->showBankName(),
+                IbanColumn::make('iban')->label('IBAN')->showBankDetails(),
                 TextColumn::make('notes')->limit(40)->toggleable(),
             ])
             ->recordActions([ActionGroup::make([ViewAction::make(), EditAction::make()])])

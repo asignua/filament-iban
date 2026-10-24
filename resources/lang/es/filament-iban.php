@@ -12,4 +12,12 @@ return [
         'checksum' => 'El campo :attribute tiene dígitos de control incorrectos: compruebe el número.',
         'country_not_allowed' => 'El campo :attribute debe ser un IBAN de uno de estos países: :countries.',
     ],
+    'bank' => [
+        'status' => [
+            'liquidation' => 'En liquidación',
+            'closed' => 'Cerrado',
+            'suspended' => 'Actividad suspendida',
+            'other' => 'Estado: :status',
+        ],
+    ],
 ];

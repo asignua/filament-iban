@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Asignua\FilamentIban\Forms\Components;
 
 use Asignua\FilamentIban\Rules\Iban as IbanRule;
+use Asignua\FilamentIban\Support\BankDetails;
 use Asignua\FilamentIban\Support\BankDirectories;
 use Asignua\FilamentIban\Support\Iban;
 use Closure;
@@ -17,6 +18,7 @@ use Illuminate\Support\HtmlString;
  * form state is validated and saved in the compact form (upper case, no spaces).
  *
  *     IbanInput::make('iban')->countries(['UA', 'PL'])->showBankName()
+ *     IbanInput::make('iban')->showBankDetails()
  */
 class IbanInput extends TextInput
 {
@@ -24,6 +26,8 @@ class IbanInput extends TextInput
     protected array|Closure|null $countries = null;
 
     protected bool|Closure|null $showBankName = null;
+
+    protected bool|Closure|null $showBankDetails = null;
 
     protected string|Htmlable|Closure|null $userHelperText = null;
 
@@ -119,7 +123,7 @@ class IbanInput extends TextInput
     }
 
     /**
-     * The bank name is resolved on the server on blur, so the field turns live only when it is shown. Done here and
+     * The bank name or details are resolved on the server on blur, so the field turns live only when they are shown. Done here and
      * not with `live()` in setUp: an explicit `isLive === false` would stop the field from inheriting a parent
      * container's `live()`. A `->live()` of your own sets `isLive` and wins.
      *
@@ -127,7 +131,7 @@ class IbanInput extends TextInput
      */
     public function getStateBindingModifiers(bool $withBlur = true, bool $withDebounce = true, bool $isOptimisticallyLive = true): array
     {
-        if ($this->stateBindingModifiers === null && $this->isLive === null && $this->shouldShowBankName()) {
+        if ($this->stateBindingModifiers === null && $this->isLive === null && $this->needsBankLookup()) {
             return $withBlur ? ['live', 'blur'] : ($isOptimisticallyLive ? ['live'] : []);
         }
 
@@ -136,12 +140,12 @@ class IbanInput extends TextInput
 
     public function isLive(): bool
     {
-        return ($this->isLive === null && $this->shouldShowBankName()) || parent::isLive();
+        return ($this->isLive === null && $this->needsBankLookup()) || parent::isLive();
     }
 
     public function isLiveOnBlur(): bool
     {
-        return ($this->isLive === null && $this->shouldShowBankName()) || parent::isLiveOnBlur();
+        return ($this->isLive === null && $this->needsBankLookup()) || parent::isLiveOnBlur();
     }
 
     /**
@@ -157,7 +161,13 @@ class IbanInput extends TextInput
     protected function composeHelperText(): string|Htmlable|null
     {
         $own = $this->evaluate($this->userHelperText);
-        $bank = $this->shouldShowBankName() ? $this->getBankName() : null;
+        $bank = null;
+
+        if ($this->shouldShowBankDetails()) {
+            $bank = $this->getBankDetails()?->toHtml();
+        } elseif ($this->shouldShowBankName()) {
+            $bank = $this->getBankName();
+        }
 
         if (blank($bank)) {
             return blank($own) ? null : $own;
@@ -169,7 +179,7 @@ class IbanInput extends TextInput
 
         $own = $own instanceof Htmlable ? $own->toHtml() : e($own);
 
-        return new HtmlString($own.' — '.e($bank));
+        return new HtmlString($own.' — '.($bank instanceof Htmlable ? $bank->toHtml() : e($bank)));
     }
 
     /**
@@ -209,6 +219,34 @@ class IbanInput extends TextInput
     public function shouldShowBankName(): bool
     {
         return (bool) ($this->evaluate($this->showBankName) ?? config('filament-iban.show_bank_name', false));
+    }
+
+    /**
+     * Show the name, BIC and city of the bank (and a warning when it is being liquidated) under the field, resolved
+     * on the server once the field loses focus. Replaces the plain bank name.
+     */
+    public function showBankDetails(bool|Closure $condition = true): static
+    {
+        $this->showBankDetails = $condition;
+
+        return $this;
+    }
+
+    public function shouldShowBankDetails(): bool
+    {
+        return (bool) ($this->evaluate($this->showBankDetails) ?? config('filament-iban.show_bank_details', false));
+    }
+
+    protected function needsBankLookup(): bool
+    {
+        return $this->shouldShowBankName() || $this->shouldShowBankDetails();
+    }
+
+    public function getBankDetails(): ?BankDetails
+    {
+        $state = $this->getState();
+
+        return is_string($state) ? app(BankDirectories::class)->details($state) : null;
     }
 
     public function getBankName(): ?string

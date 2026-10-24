@@ -12,4 +12,12 @@ return [
         'checksum' => ':attribute alanının kontrol basamakları yanlış, lütfen numarayı kontrol edin.',
         'country_not_allowed' => ':attribute alanı şu ülkelerden birine ait bir IBAN olmalıdır: :countries.',
     ],
+    'bank' => [
+        'status' => [
+            'liquidation' => 'Tasfiye halinde',
+            'closed' => 'Kapalı',
+            'suspended' => 'Faaliyet askıda',
+            'other' => 'Durum: :status',
+        ],
+    ],
 ];

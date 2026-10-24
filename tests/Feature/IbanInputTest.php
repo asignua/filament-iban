@@ -4,15 +4,28 @@ declare(strict_types=1);
 
 namespace Asignua\FilamentIban\Tests\Feature;
 
+use Asignua\FilamentIban\Contracts\BankDirectory;
+use Asignua\FilamentIban\Contracts\ResolvesBankDetails;
 use Asignua\FilamentIban\Forms\Components\IbanInput;
 use Asignua\FilamentIban\Infolists\Components\IbanEntry;
+use Asignua\FilamentIban\Support\BankDetails;
+use Asignua\FilamentIban\Support\BankDirectories;
 use Asignua\FilamentIban\Tables\Columns\IbanColumn;
+use Asignua\FilamentIban\Tests\Concerns\BuildsIbans;
 use Asignua\FilamentIban\Tests\TestCase;
+use Closure;
+use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\File;
 use Livewire\Livewire;
+use Workbench\App\Filament\Resources\SupplierResource\Pages\ListSuppliers;
+use Workbench\App\Filament\Resources\SupplierResource\Pages\ViewSupplier;
 use Workbench\App\Livewire\IbanForm;
+use Workbench\App\Models\Supplier;
 
 class IbanInputTest extends TestCase
 {
+    use BuildsIbans;
+
     public function test_state_is_dehydrated_compact(): void
     {
         Livewire::test(IbanForm::class)
@@ -184,5 +197,145 @@ class IbanInputTest extends TestCase
     {
         $this->assertSame('x', IbanInput::make('iban')->validationAttribute('x')->getValidationAttribute());
         $this->assertSame('x', IbanInput::make('iban')->label('IBAN')->validationAttribute(fn () => 'x')->getValidationAttribute());
+    }
+
+    public function test_bank_details_show_name_bic_and_city_under_the_field(): void
+    {
+        Livewire::test(IbanForm::class)
+            ->fillForm(['details' => 'UA21 3223 1300 0002 6007 2335 6600 1'])
+            ->assertSee('Укрексімбанк')
+            ->assertSee('Київ')
+            ->assertDontSee(__('filament-iban::filament-iban.bank.status.liquidation'));
+    }
+
+    public function test_bank_details_warn_about_a_bank_in_liquidation(): void
+    {
+        $dir = $this->banksDirectory("<?php return ['banks' => ['322313' => ['name' => 'Old Bank', 'bic' => 'OLDBUA2X', 'city' => 'Lviv', 'status' => 'liquidation']]];");
+
+        Livewire::test(IbanForm::class)
+            ->fillForm(['details' => 'UA21 3223 1300 0002 6007 2335 6600 1'])
+            ->assertSeeHtml('Old Bank · OLDBUA2X · Lviv')
+            ->assertSeeHtml('fi-color-danger')
+            ->assertSee(__('filament-iban::filament-iban.bank.status.liquidation'));
+
+        File::deleteDirectory($dir);
+    }
+
+    public function test_bank_details_are_escaped_and_composed_with_the_own_helper_text(): void
+    {
+        $dir = $this->banksDirectory("<?php return ['banks' => ['322313' => ['name' => '<script>alert(1)</script>', 'city' => '<b>x</b>']]];");
+
+        $html = Livewire::test(IbanForm::class)
+            ->fillForm(['detailed_help' => 'UA21 3223 1300 0002 6007 2335 6600 1'])
+            ->html();
+
+        $this->assertStringNotContainsString('<script>alert(1)</script>', $html);
+        $this->assertStringNotContainsString('<b>x</b>', $html);
+        $this->assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt; · &lt;b&gt;x&lt;/b&gt;', $html);
+        $this->assertStringContainsString('Own &lt;hint&gt; — ', $html);
+
+        File::deleteDirectory($dir);
+    }
+
+    public function test_bank_details_make_the_field_live_on_blur_and_replace_the_plain_name(): void
+    {
+        $input = IbanInput::make('b')->showBankDetails();
+
+        $this->assertTrue($input->isLiveOnBlur());
+        $this->assertSame(['live', 'blur'], $input->getStateBindingModifiers());
+        config()->set('filament-iban.show_bank_details', true);
+        $this->assertTrue(IbanInput::make('c')->shouldShowBankDetails());
+        $this->assertFalse(IbanInput::make('c')->showBankDetails(false)->shouldShowBankDetails());
+    }
+
+    public function test_entry_and_column_render_the_details_escaped_with_a_warning(): void
+    {
+        $dir = $this->banksDirectory("<?php return ['banks' => ['322313' => ['name' => 'A <i>Bank</i>', 'bic' => 'ABCDUA2X', 'city' => 'Kyiv', 'status' => 'closed']]];");
+        $iban = 'UA213223130000026007233566001';
+
+        $supplier = Supplier::create(['name' => 'Acme', 'country' => 'UA', 'iban' => $iban]);
+
+        $column = IbanColumn::make('iban')->showBankDetails();
+        $description = (string) $this->description($column, $iban);
+
+        $this->assertStringContainsString('A &lt;i&gt;Bank&lt;/i&gt; · ABCDUA2X · Kyiv', $description);
+        $this->assertStringContainsString('fi-color-danger', $description);
+        $this->assertStringContainsString(__('filament-iban::filament-iban.bank.status.closed'), $description);
+
+        $name = IbanColumn::make('iban')->showBankName();
+        $this->assertSame('A <i>Bank</i>', $this->description($name, $iban));
+
+        $off = IbanColumn::make('iban');
+        $this->assertNull($this->description($off, $iban));
+
+        $html = Livewire::test(ViewSupplier::class, ['record' => $supplier->getKey()])->html();
+
+        $this->assertStringContainsString('A &lt;i&gt;Bank&lt;/i&gt; · ABCDUA2X · Kyiv', $html);
+        $this->assertStringNotContainsString('<i>Bank</i>', $html);
+        $this->assertStringContainsString('fi-color-danger', $html);
+
+        $list = Livewire::test(ListSuppliers::class)->html();
+
+        $this->assertStringContainsString('A &lt;i&gt;Bank&lt;/i&gt; · ABCDUA2X · Kyiv', $list);
+        $this->assertStringNotContainsString('<i>Bank</i>', $list);
+
+        File::deleteDirectory($dir);
+    }
+
+    public function test_the_config_default_turns_details_on_for_entry_and_column(): void
+    {
+        config()->set('filament-iban.show_bank_details', true);
+        $iban = 'UA213223130000026007233566001';
+
+        $supplier = Supplier::create(['name' => 'Acme', 'country' => 'UA', 'iban' => $iban]);
+
+        $this->assertStringContainsString('Укрексімбанк', (string) $this->description(IbanColumn::make('iban'), $iban));
+
+        $this->assertStringContainsString('Київ', Livewire::test(ViewSupplier::class, ['record' => $supplier->getKey()])->html());
+    }
+
+    public function test_a_directory_with_a_hostile_name_cannot_inject_markup(): void
+    {
+        app(BankDirectories::class)->register('DE', new class implements BankDirectory, ResolvesBankDetails
+        {
+            public function bankName(string $iban): ?string
+            {
+                return '<script>1</script>';
+            }
+
+            public function bankDetails(string $iban): ?BankDetails
+            {
+                return new BankDetails('<script>1</script>', '<img src=x onerror=1>', '"><svg/onload=1>');
+            }
+        });
+
+        $html = Livewire::test(IbanForm::class)
+            ->fillForm(['details' => 'DE89 3704 0044 0532 0130 00'])
+            ->html();
+
+        $this->assertStringNotContainsString('<script>1</script>', $html);
+        $this->assertStringNotContainsString('<img src=x', $html);
+        $this->assertStringNotContainsString('<svg/onload', $html);
+        $this->assertStringContainsString('&lt;script&gt;1&lt;/script&gt;', $html);
+    }
+
+    /**
+     * The column's description closure needs a mounted table; call it with the state directly.
+     */
+    private function description(IbanColumn $column, string $state): string|Htmlable|null
+    {
+        $closure = (fn (): Closure => $this->descriptionBelow)->call($column);
+
+        return $closure($column, $state);
+    }
+
+    private function banksDirectory(string $uaFile): string
+    {
+        $dir = sys_get_temp_dir().'/filament-iban-'.uniqid();
+        File::ensureDirectoryExists($dir);
+        File::put($dir.'/ua.php', $uaFile);
+        config()->set('filament-iban.banks_path', $dir);
+
+        return $dir;
     }
 }

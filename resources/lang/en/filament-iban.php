@@ -12,4 +12,12 @@ return [
         'checksum' => 'The :attribute has wrong check digits - please check the number.',
         'country_not_allowed' => 'The :attribute must be an IBAN of one of these countries: :countries.',
     ],
+    'bank' => [
+        'status' => [
+            'liquidation' => 'In liquidation',
+            'closed' => 'Closed',
+            'suspended' => 'Activity suspended',
+            'other' => 'Status: :status',
+        ],
+    ],
 ];

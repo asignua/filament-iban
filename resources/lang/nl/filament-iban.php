@@ -12,4 +12,12 @@ return [
         'checksum' => 'Het veld :attribute heeft onjuiste controlecijfers - controleer het nummer.',
         'country_not_allowed' => 'Het veld :attribute moet een IBAN zijn uit een van deze landen: :countries.',
     ],
+    'bank' => [
+        'status' => [
+            'liquidation' => 'In liquidatie',
+            'closed' => 'Gesloten',
+            'suspended' => 'Activiteit opgeschort',
+            'other' => 'Status: :status',
+        ],
+    ],
 ];

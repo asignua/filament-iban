@@ -37,6 +37,8 @@ class IbanForm extends Component implements HasSchemas
                 IbanInput::make('eu')->countries(['de', 'PL'])->showBankName(),
                 IbanInput::make('helped')->countries(['UA'])->showBankName()->helperText('Your own hint'),
                 IbanInput::make('ua')->countries(['UA'])->showBankName(),
+                IbanInput::make('details')->countries(['UA', 'DE'])->showBankDetails(),
+                IbanInput::make('detailed_help')->countries(['UA'])->showBankDetails()->helperText('Own <hint>'),
                 Section::make()->live()->schema([IbanInput::make('inherits')]),
                 IbanInput::make('limited')->maxLength(34),
                 Repeater::make('accounts')->schema([

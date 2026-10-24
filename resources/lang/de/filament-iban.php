@@ -12,4 +12,12 @@ return [
         'checksum' => 'Das Feld :attribute hat falsche Prüfziffern – bitte die Nummer prüfen.',
         'country_not_allowed' => 'Das Feld :attribute muss eine IBAN aus einem dieser Länder sein: :countries.',
     ],
+    'bank' => [
+        'status' => [
+            'liquidation' => 'In Liquidation',
+            'closed' => 'Geschlossen',
+            'suspended' => 'Tätigkeit ausgesetzt',
+            'other' => 'Status: :status',
+        ],
+    ],
 ];
