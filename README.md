@@ -1,6 +1,6 @@
 # Filament IBAN
 
-<img class="filament-hidden" src="https://raw.githubusercontent.com/asignua/filament-iban/v1.0.2/art/cover.jpg" alt="Filament IBAN">
+<img class="filament-hidden" src="https://raw.githubusercontent.com/asignua/filament-iban/v1.1.0/art/cover.jpg" alt="Filament IBAN">
 
 [![Tests](https://img.shields.io/github/actions/workflow/status/asignua/filament-iban/tests.yml?branch=main&label=tests)](https://github.com/asignua/filament-iban/actions/workflows/tests.yml)
 
@@ -12,21 +12,21 @@ an infolist entry, a table column and a value helper. No dependencies besides Fi
 
 ## Screenshots
 
-![A table with IbanColumn: grouped numbers and bank names](https://raw.githubusercontent.com/asignua/filament-iban/v1.0.2/art/list.jpg)
+![A table with IbanColumn: grouped numbers with bank, BIC and city](https://raw.githubusercontent.com/asignua/filament-iban/v1.1.0/art/list.jpg)
 
-The field groups the number as you type and shows the bank for Ukrainian and Polish accounts:
+The field groups the number as you type and shows the bank, BIC and city underneath - with a warning when the bank is in liquidation:
 
-![IbanInput with the bank name under the field](https://raw.githubusercontent.com/asignua/filament-iban/v1.0.2/art/form.jpg)
+![IbanInput with bank details and a liquidation warning under the field](https://raw.githubusercontent.com/asignua/filament-iban/v1.1.0/art/form.jpg)
 
 Every IBAN country is checked for length, account structure and check digits:
 
-![A validation error for a wrong IBAN](https://raw.githubusercontent.com/asignua/filament-iban/v1.0.2/art/validation.jpg)
+![A validation error for a wrong IBAN](https://raw.githubusercontent.com/asignua/filament-iban/v1.1.0/art/validation.jpg)
 
-![IbanEntry on a view page](https://raw.githubusercontent.com/asignua/filament-iban/v1.0.2/art/view.jpg)
+![IbanEntry on a view page](https://raw.githubusercontent.com/asignua/filament-iban/v1.1.0/art/view.jpg)
 
 Dark mode:
 
-![Dark mode](https://raw.githubusercontent.com/asignua/filament-iban/v1.0.2/art/list-dark.jpg)
+![Dark mode](https://raw.githubusercontent.com/asignua/filament-iban/v1.1.0/art/list-dark.jpg)
 
 ## Requirements
 

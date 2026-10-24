@@ -1,6 +1,6 @@
 {
     "name": "asignua/filament-iban",
-    "description": "IBAN input, validation rule, infolist entry and table column for Filament 5: grouped display, compact storage, SWIFT registry checks for every IBAN country and bank names for Ukraine and Poland.",
+    "description": "IBAN input, validation rule, infolist entry and table column for Filament 5: grouped display, compact storage, SWIFT registry checks for every IBAN country and bank details (name, BIC, city, liquidation status) for Ukraine and Poland, plus Germany, Austria, Switzerland, Liechtenstein and Czechia from their official registers.",
     "keywords": ["filament", "filament-plugin", "laravel", "iban", "bank", "validation"],
     "homepage": "https://github.com/asignua/filament-iban",
     "support": {
