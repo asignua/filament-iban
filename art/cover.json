@@ -12,7 +12,8 @@
             "viewport": {
                 "width": 1720,
                 "height": 900
-            }
+            },
+            "stamp": false
         }
     ],
     "covers": [
@@ -24,8 +25,7 @@
                 "lead": "An IBAN field, rule, column and entry: grouped as you type, stored compact, checked against the registry of every IBAN country — with the bank, BIC and city underneath.",
                 "chips": "Mod-97 + SWIFT registry|Bank, BIC, city|Liquidation warning|UA PL DE AT CH CZ",
                 "shot": "../../filament-iban/art/cover-source.jpg",
-                "crop": "690,170,2700,1630",
-                "brand": "asignua"
+                "crop": "690,170,2700,1630"
             }
         }
     ]
