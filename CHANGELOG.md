@@ -2,7 +2,7 @@
 
 All notable changes to `asignua/filament-iban` are documented here.
 
-## Unreleased
+## v1.1.0 - 2026-10-25
 
 - Bank details: `showBankDetails()` on `IbanInput`, `IbanEntry` and `IbanColumn` (config `show_bank_details`) shows "Name · BIC · City" and a danger-coloured status ("In liquidation", "Closed", "Activity suspended") for a bank that is not active. `showBankName()` is unchanged; where both are on, details win.
 - New value object `Support\BankDetails` (name, bic, city, address, postcode, status), `Contracts\ResolvesBankDetails` and `BankDirectories::details()`. Not a breaking change: `BankDirectory` is untouched, a directory without `ResolvesBankDetails` yields details with just the name.
