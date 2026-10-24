@@ -7,12 +7,15 @@ namespace Asignua\FilamentIban\Tests\Feature;
 use Asignua\FilamentIban\Support\BankDirectories;
 use Asignua\FilamentIban\Support\Banks\PolandBanks;
 use Asignua\FilamentIban\Support\Banks\UkraineBanks;
+use Asignua\FilamentIban\Tests\Concerns\BuildsIbans;
 use Asignua\FilamentIban\Tests\TestCase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 
 class UpdateBanksCommandTest extends TestCase
 {
+    use BuildsIbans;
+
     private string $dir;
 
     protected function setUp(): void
@@ -41,9 +44,9 @@ class UpdateBanksCommandTest extends TestCase
 
         return (string) json_encode([
             ...$filler,
-            ['GLMFO' => 305299, 'MFO' => 305299, 'TYP' => 0, 'SHORTNAME' => 'АТ КБ "ПриватБанк"'],
+            ['GLMFO' => 305299, 'MFO' => 305299, 'TYP' => 0, 'SHORTNAME' => 'АТ КБ "ПриватБанк"', 'NP' => 'Київ', 'ADRESS' => 'вул. Грушевського, 1Д', 'P_IND' => '01001', 'KSTAN' => 1, 'N_STAN' => 'Нормальний'],
             ['GLMFO' => 305299, 'MFO' => 305299, 'TYP' => 2, 'SHORTNAME' => 'Відділення №1 АТ КБ "ПриватБанк"'],
-            ['GLMFO' => 300335, 'MFO' => 300335, 'TYP' => 0, 'SHORTNAME' => 'АТ "Райффайзен Банк"'],
+            ['GLMFO' => 300335, 'MFO' => 300335, 'TYP' => 0, 'SHORTNAME' => 'АТ "Райффайзен Банк"', 'NP' => 'Київ', 'KSTAN' => 4, 'N_STAN' => 'Ліквідація'],
             ['GLMFO' => 300335, 'MFO' => 305653, 'TYP' => 1, 'SHORTNAME' => 'Дніпропетровська дирекція'],
         ], JSON_UNESCAPED_UNICODE);
     }
@@ -63,29 +66,39 @@ class UpdateBanksCommandTest extends TestCase
             $row('102', 'Powszechna Kasa Oszczędności Bank Polski SA'),
             $row('102', 'Powszechna Kasa Oszczędności Bank Polski SA'),
             $row('249', 'Alior Bank Spółka Akcyjna'),
+            "124  \t".str_pad('Bank Pekao SA', 40)."\t\t124\t12400001\tOddział\tO\tŁódź\tul. Piotrkowska 1\t90-001\tŁódź\t\t\t\t\t\t\t\t\tPKOPPLPW\tPKOPPLPW",
             'garbage line',
         ]))."\r\n";
     }
 
     public function test_it_downloads_and_writes_both_registers(): void
     {
+        Http::preventStrayRequests();
         Http::fake([
             UkraineBanks::URL => Http::response($this->nbu()),
             PolandBanks::URL => Http::response($this->nbp()),
         ]);
 
+        // The download-only countries (DE, AT, CH, LI, CZ) are not touched without an argument or an existing file.
         $this->artisan('filament-iban:update-banks')->assertSuccessful();
 
         $ua = require $this->dir.'/ua.php';
         $pl = require $this->dir.'/pl.php';
 
-        $this->assertSame('АТ "Райффайзен Банк"', $ua['banks']['300335']);
-        $this->assertSame('АТ КБ "ПриватБанк"', $ua['banks']['305299']);
-        $this->assertSame('АТ "Райффайзен Банк"', $ua['banks']['305653']);
+        $this->assertSame(['name' => 'АТ "Райффайзен Банк"', 'city' => 'Київ', 'status' => 'liquidation'], $ua['banks']['300335']);
+        $this->assertSame([
+            'name' => 'АТ КБ "ПриватБанк"', 'city' => 'Київ', 'address' => 'вул. Грушевського, 1Д', 'postcode' => '01001',
+        ], $ua['banks']['305299']);
+        // a branch MFO carries the head office's details, status included
+        $this->assertSame(['name' => 'АТ "Райффайзен Банк"', 'city' => 'Київ', 'status' => 'liquidation'], $ua['banks']['305653']);
+        // a bank the register knows only by name stays a plain string
+        $this->assertSame('Filler 0', $ua['banks']['400000']);
         $this->assertCount(63, $ua['banks']);
         $this->assertSame('Powszechna Kasa Oszczędności Bank Polski SA', $pl['banks']['102']);
         $this->assertSame('Powszechna Kasa Oszczędności Bank Polski SA', $pl['banks']['10200000']);
         $this->assertSame('Alior Bank Spółka Akcyjna', $pl['banks']['249']);
+        $this->assertSame(['name' => 'Bank Pekao SA', 'bic' => 'PKOPPLPW', 'city' => 'Łódź'], $pl['banks']['12400001']);
+        $this->assertSame(['name' => 'Bank Pekao SA', 'bic' => 'PKOPPLPW'], $pl['banks']['124']);
         $this->assertSame([], glob($this->dir.'/*.tmp'));
         $this->assertNotEmpty($ua['source']);
         $this->assertNotEmpty($ua['fetched_at']);
@@ -146,9 +159,21 @@ class UpdateBanksCommandTest extends TestCase
     {
         Http::fake();
 
-        $this->artisan('filament-iban:update-banks', ['country' => 'DE'])->assertExitCode(2);
+        $this->artisan('filament-iban:update-banks', ['country' => 'FR'])->assertExitCode(2);
 
         Http::assertNothingSent();
+    }
+
+    public function test_the_ukrainian_status_reaches_the_directory(): void
+    {
+        Http::fake([UkraineBanks::URL => Http::response($this->nbu())]);
+
+        $this->artisan('filament-iban:update-banks', ['country' => 'UA'])->assertSuccessful();
+
+        $details = app(BankDirectories::class)->details($this->withCheckDigits('UA', '300335'.'0000026007233566001'));
+
+        $this->assertFalse($details?->isActive());
+        $this->assertSame('liquidation', $details->status);
     }
 
     public function test_the_path_option_overrides_the_config(): void

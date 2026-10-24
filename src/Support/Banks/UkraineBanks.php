@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Asignua\FilamentIban\Support\Banks;
 
+use Asignua\FilamentIban\Support\BankDetails;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
 /**
  * Ukraine: the bank identifier is the MFO, IBAN positions 5..10 (after `UA` and the check digits). The register is
- * the National Bank of Ukraine open data "Довідник МФО" (every MFO, branch ones included, resolved to the head bank).
+ * the National Bank of Ukraine open data "Довідник МФО" (every MFO, branch ones included, resolved to the head bank:
+ * name, city, address, postcode and status are those of the head office). The register has no BIC.
  */
 class UkraineBanks extends FileBankDirectory
 {
@@ -43,12 +45,12 @@ class UkraineBanks extends FileBankDirectory
             throw new RuntimeException('The NBU register did not return a JSON list.');
         }
 
-        /** @var array<int|string, string> $heads head MFO => name */
+        /** @var array<string, BankDetails> $heads head MFO => details */
         $heads = [];
 
         foreach ($rows as $row) {
             if (is_array($row) && ($row['TYP'] ?? null) === 0 && isset($row['MFO'])) {
-                $heads[(string) $row['MFO']] = $this->name($row);
+                $heads[(string) $row['MFO']] = $this->details($row);
             }
         }
 
@@ -60,10 +62,10 @@ class UkraineBanks extends FileBankDirectory
             }
 
             $mfo = str_pad((string) $row['MFO'], 6, '0', STR_PAD_LEFT);
-            $name = $heads[(string) ($row['GLMFO'] ?? '')] ?? $this->name($row);
+            $details = $heads[(string) ($row['GLMFO'] ?? '')] ?? $this->details($row);
 
-            if ($name !== '' && !isset($banks[$mfo])) {
-                $banks[$mfo] = $name;
+            if ($details->name !== '' && !isset($banks[$mfo])) {
+                $banks[$mfo] = $details->toEntry();
             }
         }
 
@@ -79,8 +81,32 @@ class UkraineBanks extends FileBankDirectory
     /**
      * @param array<mixed> $row
      */
-    private function name(array $row): string
+    private function details(array $row): BankDetails
     {
-        return trim((string) ($row['SHORTNAME'] ?? $row['N_GOL'] ?? ''));
+        $text = static fn (string $key): ?string => is_string($row[$key] ?? null) && trim($row[$key]) !== '' ? trim($row[$key]) : null;
+
+        return new BankDetails(
+            trim((string) ($row['SHORTNAME'] ?? $row['N_GOL'] ?? '')),
+            null,
+            $text('NP'),
+            $text('ADRESS'),
+            $text('P_IND'),
+            $this->status($row),
+        );
+    }
+
+    /**
+     * KSTAN 1 = normal (null); 4 = liquidation; 5 = activity suspended; anything else keeps the register's own text.
+     *
+     * @param array<mixed> $row
+     */
+    private function status(array $row): ?string
+    {
+        return match ($row['KSTAN'] ?? null) {
+            null, 1 => null,
+            4 => 'liquidation',
+            5 => 'suspended',
+            default => is_string($row['N_STAN'] ?? null) && trim($row['N_STAN']) !== '' ? trim($row['N_STAN']) : null,
+        };
     }
 }

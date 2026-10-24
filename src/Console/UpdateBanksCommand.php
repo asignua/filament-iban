@@ -14,10 +14,10 @@ use Throwable;
 class UpdateBanksCommand extends Command
 {
     protected $signature = 'filament-iban:update-banks
-        {country? : ISO code (UA, PL); every downloadable country when omitted}
+        {country? : ISO code (UA, PL, DE, AT, CH, LI, CZ); without it the shipped countries (UA, PL) and every country that already has a data file in the target directory}
         {--path= : Export into this directory instead (the app reads only filament-iban.banks_path; used to regenerate the data shipped with the package)}';
 
-    protected $description = 'Download the national bank registers (NBU, NBP) used to show the bank name of an IBAN';
+    protected $description = 'Download the national bank registers (NBU, NBP, Bundesbank, OeNB, SIX, CNB) used to show the bank name, BIC and city of an IBAN';
 
     public function handle(BankDirectories $directories): int
     {
@@ -31,6 +31,7 @@ class UpdateBanksCommand extends Command
             }
         }
 
+        $dir = $this->targetDirectory();
         $country = $this->argument('country');
 
         if (is_string($country) && $country !== '') {
@@ -43,9 +44,12 @@ class UpdateBanksCommand extends Command
             }
 
             $sources = [$country => $sources[$country]];
+        } else {
+            // Download-only countries are opted into by running the command for them once.
+            $sources = array_filter($sources, static fn (DownloadsBanks $source): bool => ($source instanceof FileBankDirectory && $source->isShipped())
+                || File::isFile($dir.'/'.strtolower($source->country()).'.php'));
         }
 
-        $dir = $this->targetDirectory();
         $failed = false;
 
         foreach ($sources as $code => $source) {
@@ -109,7 +113,7 @@ class UpdateBanksCommand extends Command
     }
 
     /**
-     * @param array<string, string> $banks
+     * @param array<string, array<string, string>|string> $banks
      */
     private function render(DownloadsBanks $source, array $banks): string
     {
@@ -120,10 +124,30 @@ class UpdateBanksCommand extends Command
         $out .= '    \'fetched_at\' => '.var_export(now()->toDateString(), true).",\n";
         $out .= "    'banks' => [\n";
 
-        foreach ($banks as $code => $name) {
-            $out .= '        '.var_export((string) $code, true).' => '.var_export($name, true).",\n";
+        foreach ($banks as $code => $entry) {
+            $out .= '        '.var_export((string) $code, true).' => '.$this->renderEntry($entry).",\n";
         }
 
         return $out."    ],\n];\n";
+    }
+
+    /**
+     * A bare name stays a string; a bank with more details becomes a one-line array.
+     *
+     * @param array<string, string>|string $entry
+     */
+    private function renderEntry(string|array $entry): string
+    {
+        if (is_string($entry)) {
+            return var_export($entry, true);
+        }
+
+        $parts = [];
+
+        foreach ($entry as $key => $value) {
+            $parts[] = var_export($key, true).' => '.var_export($value, true);
+        }
+
+        return '['.implode(', ', $parts).']';
     }
 }

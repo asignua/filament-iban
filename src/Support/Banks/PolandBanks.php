@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Asignua\FilamentIban\Support\Banks;
 
+use Asignua\FilamentIban\Support\BankDetails;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
 /**
  * Poland: the 8-digit bank settlement number (IBAN positions 5..12) starts with the bank code, which is 3 digits for commercial banks, 4 for cooperative banks and 5 for a few institutions such as ZUS (longest match wins). The
- * register is the NBP "Plan Numeracji Rachunków Bankowych" (tab separated, CP852; column 1 = bank code, 2 = name).
+ * register is the NBP "Plan Numeracji Rachunków Bankowych" (tab separated, CP852; column 1 = bank code, 2 = name, 5 = settlement number, 8 = branch town, 20 = BIC).
  */
 class PolandBanks extends FileBankDirectory
 {
@@ -54,38 +55,61 @@ class PolandBanks extends FileBankDirectory
     /**
      * Keys: the full 8-digit settlement number of every row (the owner of a number can differ from the bank code it
      * starts with after a merger: 144xxxxx is PKO BP, formerly Nordea) and the 3-5 digit bank codes as the fallback
-     * for numbers the register does not list.
+     * for numbers the register does not list. A number carries the town of its branch and the branch's BIC (the
+     * bank's BIC when the branch has none); a bank code carries the first BIC found for it and no town.
      *
-     * @return array<string, string>
+     * @return array<string, array<string, string>|string>
      */
     public function parse(string $text): array
     {
         $numbers = [];
         $codes = [];
+        /** @var array<string, string> $bics bank code => first BIC */
+        $bics = [];
 
         foreach (preg_split('/\R/u', $text) ?: [] as $line) {
-            $columns = explode("\t", $line);
-            $code = trim($columns[0]);
-            $name = trim($columns[1] ?? '');
-            $number = trim($columns[4] ?? '');
+            $columns = array_map('trim', explode("\t", $line));
+            $code = $columns[0];
+            $name = $columns[1] ?? '';
+            $bic = $this->bic($columns[19] ?? '');
 
             if ($name === '') {
                 continue;
             }
 
-            if (preg_match('/^\d{3,5}$/', $code) === 1 && !isset($codes[$code])) {
-                $codes[$code] = $name;
+            if (preg_match('/^\d{3,5}$/', $code) === 1) {
+                $codes[$code] ??= $name;
+
+                if ($bic !== null) {
+                    $bics[$code] ??= $bic;
+                }
             }
 
+            $number = $columns[4] ?? '';
+
             if (preg_match('/^\d{8}$/', $number) === 1 && !isset($numbers[$number])) {
-                $numbers[$number] = $name;
+                $numbers[$number] = [$code, $name, $bic ?? '', $columns[7] ?? ''];
             }
         }
 
-        $banks = $codes + $numbers;
+        $banks = [];
+
+        foreach ($codes as $code => $name) {
+            $banks[(string) $code] = (new BankDetails($name, $bics[$code] ?? null))->toEntry();
+        }
+
+        foreach ($numbers as $number => [$code, $name, $bic, $city]) {
+            $banks[(string) $number] = (new BankDetails($name, $bic !== '' ? $bic : ($bics[$code] ?? null), $city !== '' ? $city : null))->toEntry();
+        }
+
         ksort($banks, SORT_STRING);
 
         return $banks;
+    }
+
+    private function bic(string $value): ?string
+    {
+        return preg_match('/^[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?$/', $value) === 1 ? $value : null;
     }
 
     /**
