@@ -34,27 +34,6 @@
         {
             "path": "/admin/suppliers/5",
             "out": "view.jpg"
-        },
-        {
-            "path": "/admin/suppliers",
-            "out": "cover-source.jpg",
-            "viewport": {
-                "width": 1720,
-                "height": 900
-            }
-        }
-    ],
-    "covers": [
-        {
-            "html": "../../scripts/art/cover.html",
-            "out": "cover.jpg",
-            "query": {
-                "title": "IBANs that check themselves",
-                "lead": "An IBAN field, rule, column and entry: grouped as you type, stored compact, checked against the registry of every IBAN country — with the bank, BIC and city underneath.",
-                "chips": "Mod-97 + SWIFT registry|Bank, BIC, city|Liquidation warning|UA PL DE AT CH CZ",
-                "shot": "../../filament-iban/art/cover-source.jpg",
-                "crop": "690,170,2700,1630"
-            }
         }
     ]
 }
