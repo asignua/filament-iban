@@ -6,18 +6,21 @@ namespace Asignua\FilamentIban\Support\Banks;
 
 use Asignua\FilamentIban\Contracts\BankDirectory;
 use Asignua\FilamentIban\Contracts\DownloadsBanks;
+use Asignua\FilamentIban\Contracts\ResolvesBankDetails;
+use Asignua\FilamentIban\Support\BankDetails;
 use Asignua\FilamentIban\Support\Iban;
 use Illuminate\Support\Facades\File;
 use Throwable;
 
 /**
  * A bank directory backed by a PHP data file `<country>.php` that returns
- * `['source' => …, 'fetched_at' => …, 'banks' => [code => name]]`. The file in `filament-iban.banks_path`
+ * `['source' => …, 'fetched_at' => …, 'banks' => [code => entry]]`, where an entry is the bank name or an array
+ * `['name' => …, 'bic' => …, 'city' => …, 'address' => …, 'postcode' => …, 'status' => …]` (only `name` is required). The file in `filament-iban.banks_path`
  * (written by `filament-iban:update-banks`, default `storage/app/filament-iban/banks`) wins over the one shipped with the package.
  */
-abstract class FileBankDirectory implements BankDirectory, DownloadsBanks
+abstract class FileBankDirectory implements BankDirectory, DownloadsBanks, ResolvesBankDetails
 {
-    /** @var array<string, string>|null */
+    /** @var array<string, array<string, string>|string>|null */
     private ?array $banks = null;
 
     /**
@@ -29,15 +32,29 @@ abstract class FileBankDirectory implements BankDirectory, DownloadsBanks
 
     public function bankName(string $iban): ?string
     {
+        return $this->bankDetails($iban)?->name;
+    }
+
+    public function bankDetails(string $iban): ?BankDetails
+    {
         $banks = $this->banks();
 
         foreach ($this->keys(Iban::normalize($iban)) as $key) {
-            if (isset($banks[$key])) {
-                return $banks[$key];
+            if (isset($banks[$key]) && ($details = BankDetails::fromEntry($banks[$key])) !== null) {
+                return $details;
             }
         }
 
         return null;
+    }
+
+    /**
+     * Whether the package ships data for this country. Countries without it (their register licence does not allow
+     * redistribution) have no bank until `filament-iban:update-banks <country>` has been run.
+     */
+    public function isShipped(): bool
+    {
+        return File::isFile(self::shippedPath($this->country()));
     }
 
     public function forget(): void
@@ -46,7 +63,7 @@ abstract class FileBankDirectory implements BankDirectory, DownloadsBanks
     }
 
     /**
-     * @return array<string, string>
+     * @return array<string, array<string, string>|string>
      */
     public function banks(): array
     {
@@ -54,7 +71,7 @@ abstract class FileBankDirectory implements BankDirectory, DownloadsBanks
     }
 
     /**
-     * @return array{source: string, fetched_at: ?string, banks: array<string, string>}
+     * @return array{source: string, fetched_at: ?string, banks: array<string, array<string, string>|string>}
      */
     public function load(): array
     {
@@ -72,7 +89,7 @@ abstract class FileBankDirectory implements BankDirectory, DownloadsBanks
             }
 
             if (is_array($data) && is_array($data['banks'] ?? null)) {
-                /** @var array{source?: string, fetched_at?: ?string, banks: array<string, string>} $data */
+                /** @var array{source?: string, fetched_at?: ?string, banks: array<string, array<string, string>|string>} $data */
 
                 return [
                     'source' => $data['source'] ?? '',

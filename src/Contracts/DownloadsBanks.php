@@ -25,9 +25,11 @@ interface DownloadsBanks
     public function source(): string;
 
     /**
-     * Downloads the register and returns bank code => bank name, sorted by code.
+     * Downloads the register and returns bank code => entry, sorted by code. An entry is the bank name or, when the
+     * register has more, an array with the keys name (required), bic, city, address, postcode and status (null/absent =
+     * active); see {@see \Asignua\FilamentIban\Support\BankDetails::fromEntry()}.
      *
-     * @return array<string, string>
+     * @return array<string, array<string, string>|string>
      */
     public function download(): array;
 }
