@@ -2,6 +2,10 @@
 
 All notable changes to `asignua/filament-iban` are documented here.
 
+## v1.1.1 - 2026-10-25
+
+- Screenshots and the cover carry the «made in asign» mark; README shows the Stand With Ukraine badge.
+
 ## v1.1.0 - 2026-10-25
 
 - Bank details: `showBankDetails()` on `IbanInput`, `IbanEntry` and `IbanColumn` (config `show_bank_details`) shows "Name · BIC · City" and a danger-coloured status ("In liquidation", "Closed", "Activity suspended") for a bank that is not active. `showBankName()` is unchanged; where both are on, details win.
