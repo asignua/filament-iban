@@ -262,6 +262,15 @@ vendor/bin/pint --test
 
 See [CHANGELOG.md](CHANGELOG.md).
 
+## More plugins by asign
+
+- [VAT ID](https://filamentphp.com/plugins/asign-vat-id) — VAT number input and VIES validation
+- [Duplicates](https://filamentphp.com/plugins/asign-duplicates) — find and merge duplicate records
+- [Captcha](https://filamentphp.com/plugins/asign-captcha) — reCAPTCHA and Turnstile fields
+- [Themes](https://filamentphp.com/plugins/asign-themes) — per-user and per-panel colour themes
+
+All plugins: <https://filamentphp.com/plugins?q=asign>
+
 ## License
 
 The MIT License (MIT). See [LICENSE.md](LICENSE.md).
