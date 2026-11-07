@@ -324,7 +324,7 @@ class IbanInputTest extends TestCase
      */
     private function description(IbanColumn $column, string $state): string|Htmlable|null
     {
-        $closure = (fn (): Closure => $this->descriptionBelow)->call($column);
+        $closure = (fn (): Closure => $this->descriptions[array_key_last($this->descriptions)]['description'])->call($column);
 
         return $closure($column, $state);
     }
